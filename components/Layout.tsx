@@ -39,11 +39,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {user && (
             <div className="flex items-center space-x-2">
-              {/* Credits Display - The Traffic Engine Fuel */}
-              <div className="hidden md:flex items-center space-x-1.5 bg-slate-800/50 border border-slate-700 rounded-full px-3 py-1 mr-2">
-                <Coins size={14} className="text-yellow-400" />
-                <span className="text-sm font-bold text-white">{user.credits || 0}</span>
-                <span className="text-xs text-slate-500 uppercase font-medium">Credits</span>
+              {/* Stats Display */}
+              <div className="hidden md:flex items-center space-x-3 mr-2">
+                  <div className="flex items-center space-x-1.5 bg-slate-800/50 border border-slate-700 rounded-full px-3 py-1">
+                    <Coins size={14} className="text-yellow-400" />
+                    <span className="text-sm font-bold text-white">{user.credits || 0}</span>
+                    <span className="text-xs text-slate-500 uppercase font-medium">Credits</span>
+                  </div>
+                  
+                  {user.isTopContributor && (
+                      <div className="flex items-center space-x-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-3 py-1 animate-pulse">
+                        <Zap size={12} className="text-yellow-400 fill-current" />
+                        <span className="text-xs font-bold text-yellow-300">1.5x Boost</span>
+                      </div>
+                  )}
               </div>
 
               {user.role === UserRole.OWNER ? (
@@ -67,7 +76,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Trophy size={18} />
                     <span className="text-sm font-medium">Leaderboard</span>
                   </NavLink>
-                  {/* Added Profile Link for Generator to allow Interest editing */}
                   <NavLink to="/profile" className={navLinkClass}>
                     <UserIcon size={18} />
                     <span className="text-sm font-medium">Profile</span>

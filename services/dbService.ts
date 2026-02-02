@@ -19,6 +19,8 @@ const getItems = <T>(key: string): T[] => {
 
 const setItems = <T>(key: string, items: T[]) => {
   localStorage.setItem(key, JSON.stringify(items));
+  // Dispatch event for UI updates across tabs/components
+  window.dispatchEvent(new Event('storage'));
 };
 
 export const dbService = {
@@ -47,6 +49,7 @@ export const dbService = {
       isTopContributor: false,
       credits: 50,
       streakDays: 0,
+      points: 0,
       lastActiveDate: new Date().toISOString(),
       referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
     };
@@ -65,34 +68,76 @@ export const dbService = {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   },
 
+  // --- REWARD SYSTEM LOGIC ---
+  
   checkAndRunWeeklyRewards: () => {
     const lastUpdateStr = localStorage.getItem(STORAGE_KEYS.SYSTEM_LAST_UPDATE);
     const now = Date.now();
     const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-    if (!lastUpdateStr || (now - parseInt(lastUpdateStr) > ONE_WEEK)) {
-      const users = getItems<User>(STORAGE_KEYS.USERS);
-      users.sort((a, b) => b.points - a.points);
-      users.forEach((user, index) => {
-        if (user.role === UserRole.GENERATOR) {
-          if (index < 10 && user.points > 0) {
-            user.isTopContributor = true;
-            user.pointMultiplier = 1.5;
-          } else {
-            user.isTopContributor = false;
-            user.pointMultiplier = 1.0;
-          }
-        }
-      });
-      setItems(STORAGE_KEYS.USERS, users);
-      localStorage.setItem(STORAGE_KEYS.SYSTEM_LAST_UPDATE, now.toString());
-      const currentUser = dbService.getCurrentUser();
-      if (currentUser) {
-        const updatedCurrent = users.find(u => u.id === currentUser.id);
-        if (updatedCurrent) {
-          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrent));
-        }
+    
+    if (!lastUpdateStr) {
+       localStorage.setItem(STORAGE_KEYS.SYSTEM_LAST_UPDATE, now.toString());
+       return;
+    }
+
+    if (now - parseInt(lastUpdateStr) > ONE_WEEK) {
+      dbService.triggerWeeklyRewards();
+    }
+  },
+
+  // Public method to force trigger rewards (for testing/admin)
+  triggerWeeklyRewards: () => {
+    const now = Date.now();
+    const allUsers = getItems<User>(STORAGE_KEYS.USERS);
+    
+    // 1. Isolate Generators
+    const generators = allUsers.filter(u => u.role === UserRole.GENERATOR);
+    
+    // 2. Sort by Points (Desc)
+    generators.sort((a, b) => b.points - a.points);
+    
+    // 3. Get Top 10 IDs (only if they have points to avoid empty boosting)
+    const topGeneratorIds = new Set(
+      generators.slice(0, 10)
+        .filter(u => u.points > 0)
+        .map(u => u.id)
+    );
+
+    console.log("🏆 Running Weekly Rewards. Top IDs:", Array.from(topGeneratorIds));
+
+    // 4. Update All Users
+    const updatedUsers = allUsers.map(user => {
+      if (user.role === UserRole.GENERATOR) {
+        const isTop = topGeneratorIds.has(user.id);
+        return {
+          ...user,
+          isTopContributor: isTop,
+          pointMultiplier: isTop ? 1.5 : 1.0, // Grant 1.5x boost for next week
+          lastWeeklyUpdate: now
+        };
+      }
+      return user;
+    });
+
+    setItems(STORAGE_KEYS.USERS, updatedUsers);
+    localStorage.setItem(STORAGE_KEYS.SYSTEM_LAST_UPDATE, now.toString());
+    
+    // Update session if current user is affected
+    const currentUser = dbService.getCurrentUser();
+    if (currentUser) {
+      const updatedCurrent = updatedUsers.find(u => u.id === currentUser.id);
+      if (updatedCurrent) {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrent));
       }
     }
+    
+    return updatedUsers;
+  },
+
+  getNextWeeklyUpdate: (): Date => {
+    const lastUpdateStr = localStorage.getItem(STORAGE_KEYS.SYSTEM_LAST_UPDATE);
+    if (!lastUpdateStr) return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return new Date(parseInt(lastUpdateStr) + 7 * 24 * 60 * 60 * 1000);
   },
 
   // Websites
@@ -153,6 +198,8 @@ export const dbService = {
     const ratings = getItems<Rating>(STORAGE_KEYS.RATINGS);
     ratings.push(rating);
     setItems(STORAGE_KEYS.RATINGS, ratings);
+    
+    // Update User Points
     const users = getItems<User>(STORAGE_KEYS.USERS);
     const userIndex = users.findIndex(u => u.id === rating.userId);
     if (userIndex !== -1) {
@@ -171,17 +218,21 @@ export const dbService = {
       const streakBonus = Math.min(Math.floor((user.streakDays || 0) / 5), 5);
       const earnedCredits = baseCredits + streakBonus;
       user.credits = (user.credits || 0) + earnedCredits;
+      
+      // APPLY MULTIPLIER (Automatic 1.5x for Top Contributors)
       const multiplier = user.pointMultiplier || 1.0;
-      user.points += Math.round(10 * multiplier);
+      const basePoints = 10;
+      user.points = (user.points || 0) + Math.round(basePoints * multiplier);
+      
       setItems(STORAGE_KEYS.USERS, users);
+      
+      // Update session if matches
       const currentUser = dbService.getCurrentUser();
       if (currentUser && currentUser.id === rating.userId) {
-        currentUser.credits = user.credits;
-        currentUser.streakDays = user.streakDays;
-        currentUser.points = user.points;
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
       }
     }
+    
     dbService.updateWebsiteStats(rating.websiteId, rating.score);
     return rating;
   },
@@ -194,7 +245,6 @@ export const dbService = {
   // --- CAMPAIGN METHODS ---
   saveCampaign: (campaign: Campaign) => {
     const campaigns = getItems<Campaign>(STORAGE_KEYS.CAMPAIGNS);
-    // Overwrite existing if present (update)
     const idx = campaigns.findIndex(c => c.id === campaign.id);
     if (idx !== -1) {
       campaigns[idx] = campaign;
@@ -206,7 +256,6 @@ export const dbService = {
 
   getCampaignByWebsite: (websiteId: string): Campaign | undefined => {
     const campaigns = getItems<Campaign>(STORAGE_KEYS.CAMPAIGNS);
-    // Return latest
     return campaigns.filter(c => c.websiteId === websiteId).sort((a, b) => b.timestamp - a.timestamp)[0];
   }
 };
