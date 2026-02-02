@@ -74,13 +74,41 @@ const DiscoveryFeed: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 md:py-20 space-y-4">
-          <div className="relative">
-            <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-slate-700 rounded-full" />
-            <div className="absolute top-0 left-0 w-12 h-12 md:w-16 md:h-16 border-4 border-t-brand-500 rounded-full animate-spin" />
-            <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-brand-400" size={20} />
-          </div>
-          <p className="text-sm md:text-base text-slate-400 animate-pulse">Gemini 3 is reasoning...</p>
+        <div className="space-y-4 md:space-y-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 md:p-6 shadow-xl animate-pulse relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/10 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+               
+               <div className="flex items-start justify-between mb-3 md:mb-4">
+                 <div className="flex-1 pr-2">
+                   <div className="flex items-center space-x-2 mb-2">
+                     <div className="h-4 w-16 bg-slate-700 rounded-md"></div>
+                     <div className="h-3 w-20 bg-slate-700 rounded-md"></div>
+                   </div>
+                   <div className="h-6 w-3/4 bg-slate-700 rounded-lg mb-2"></div>
+                 </div>
+                 <div className="h-6 w-16 bg-slate-700 rounded-full"></div>
+               </div>
+
+               <div className="bg-slate-900/50 rounded-xl p-3 md:p-4 mb-4 md:mb-6 border border-slate-700/50">
+                 <div className="flex items-start gap-3">
+                   <div className="h-4 w-4 bg-slate-700 rounded-full flex-shrink-0 mt-1"></div>
+                   <div className="space-y-2 w-full">
+                       <div className="h-3 w-full bg-slate-700 rounded"></div>
+                       <div className="h-3 w-2/3 bg-slate-700 rounded"></div>
+                   </div>
+                 </div>
+               </div>
+
+               <div className="space-y-2 mb-6">
+                   <div className="h-3 w-full bg-slate-700 rounded"></div>
+                   <div className="h-3 w-5/6 bg-slate-700 rounded"></div>
+               </div>
+
+               <div className="h-12 w-full bg-slate-700 rounded-xl"></div>
+            </div>
+          ))}
+          <div className="text-center text-xs text-slate-500 animate-pulse mt-4">Gemini 3 is reasoning...</div>
         </div>
       ) : (
         <div className="space-y-4 md:space-y-6">

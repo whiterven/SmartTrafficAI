@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { dbService } from '../services/dbService';
-import { UserRole } from '../types';
-import { Save, Plus, X, Award, Zap, TrendingUp, Sparkles, ArrowRight, ShieldCheck, CreditCard, Bell, Flame, Users, Copy, Check } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { UserRole, User } from '../types';
+import { Save, Plus, X, Award, Zap, TrendingUp, Sparkles, ArrowRight, ShieldCheck, CreditCard, Bell, Flame, Users, Copy, Check, Gift, Crown, ShoppingBag } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 const SUGGESTED_INTERESTS = ['SaaS', 'Crypto', 'AI Tools', 'Health', 'Marketing', 'Design', 'Tech News', 'E-commerce', 'Gaming', 'Finance'];
@@ -35,19 +35,23 @@ const Profile: React.FC = () => {
   const handleSave = () => {
     if (!user) return;
     const updatedUser = { ...user, interests };
+    saveUser(updatedUser);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const saveUser = (updatedUser: User) => {
     localStorage.setItem('st_current_user', JSON.stringify(updatedUser));
     
     // Update main user list in LS
     const allUsers = JSON.parse(localStorage.getItem('st_users') || '[]');
-    const idx = allUsers.findIndex((u: any) => u.id === user.id);
+    const idx = allUsers.findIndex((u: any) => u.id === updatedUser.id);
     if (idx !== -1) {
       allUsers[idx] = updatedUser;
       localStorage.setItem('st_users', JSON.stringify(allUsers));
     }
     
     setUser(updatedUser);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleCopyReferral = () => {
@@ -134,6 +138,11 @@ const Profile: React.FC = () => {
             </button>
         </div>
       </motion.div>
+
+      {/* GENERATOR: Rewards Shop */}
+      {user.role === UserRole.GENERATOR && (
+         <RewardsShop user={user} onUpdate={saveUser} />
+      )}
 
       {user.role === UserRole.GENERATOR ? (
         <motion.div 
@@ -292,6 +301,73 @@ const Profile: React.FC = () => {
     </div>
   );
 };
+
+const RewardsShop: React.FC<{ user: User, onUpdate: (u: User) => void }> = ({ user, onUpdate }) => {
+  const [redeeming, setRedeeming] = useState<string | null>(null);
+
+  const rewards = [
+    { id: 'gc-5', name: '$5 Amazon Gift Card', cost: 500, icon: Gift, color: 'text-pink-400' },
+    { id: 'boost-100', name: '100 Traffic Visitors', cost: 250, icon: TrendingUp, color: 'text-green-400' },
+    { id: 'premium-1w', name: 'Premium Status (1 Week)', cost: 100, icon: Crown, color: 'text-yellow-400' },
+  ];
+
+  const handleRedeem = (reward: any) => {
+    if ((user.credits || 0) < reward.cost) return;
+    setRedeeming(reward.id);
+    
+    // Simulate API call
+    setTimeout(() => {
+      const updatedUser = { ...user, credits: (user.credits || 0) - reward.cost };
+      onUpdate(updatedUser);
+      setRedeeming(null);
+      alert(`Successfully redeemed: ${reward.name}. Check your email!`);
+    }, 1500);
+  };
+
+  return (
+    <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.08 }}
+        className="bg-slate-800 border border-slate-700 rounded-2xl p-5 md:p-6"
+    >
+        <div className="flex items-center gap-2 mb-6">
+            <ShoppingBag className="text-brand-400" size={20} />
+            <h3 className="text-lg font-bold text-white">Rewards Shop</h3>
+        </div>
+
+        <div className="space-y-4">
+            {rewards.map(reward => {
+                const canAfford = (user.credits || 0) >= reward.cost;
+                return (
+                    <div key={reward.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center ${reward.color}`}>
+                                <reward.icon size={20} />
+                            </div>
+                            <div>
+                                <div className="text-sm font-semibold text-white">{reward.name}</div>
+                                <div className="text-xs text-slate-400 font-mono">{reward.cost} Credits</div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => handleRedeem(reward)}
+                            disabled={!canAfford || redeeming === reward.id}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                canAfford 
+                                ? 'bg-brand-600 text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20' 
+                                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                            }`}
+                        >
+                            {redeeming === reward.id ? '...' : 'Redeem'}
+                        </button>
+                    </div>
+                )
+            })}
+        </div>
+    </motion.div>
+  );
+}
 
 const CheckmarkIcon = () => (
     <svg className="w-4 h-4 md:w-5 md:h-5 animate-in fade-in zoom-in duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
