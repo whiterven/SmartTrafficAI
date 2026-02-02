@@ -41,7 +41,7 @@ const CAMPAIGN_TOOLS: Tool[] = [
       },
       {
         name: "post_to_social_media",
-        description: "Create and schedule a social media post",
+        description: "Create and schedule a social media post with an image",
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -92,15 +92,15 @@ const CAMPAIGN_TOOLS: Tool[] = [
       },
       {
         name: "create_video_content",
-        description: "Generate a promotional video script and metadata",
+        description: "Generate a promotional video using Veo",
         parameters: {
           type: Type.OBJECT,
           properties: {
             platform: { type: Type.STRING },
             title: { type: Type.STRING },
-            script: { type: Type.STRING }
+            visualPrompt: { type: Type.STRING, description: "Description of the video scene to generate" }
           },
-          required: ["platform", "title", "script"]
+          required: ["platform", "title", "visualPrompt"]
         }
       },
       {
@@ -114,6 +114,18 @@ const CAMPAIGN_TOOLS: Tool[] = [
             category: { type: Type.STRING }
           },
           required: ["service", "businessName", "category"]
+        }
+      },
+      {
+        name: "setup_analytics_tracking",
+        description: "Configure analytics tools for the website",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            platform: { type: Type.STRING, description: "e.g., Google Analytics, Facebook Pixel" },
+            trackingId: { type: Type.STRING }
+          },
+          required: ["platform", "trackingId"]
         }
       }
     ]
@@ -221,14 +233,13 @@ export const geminiService = {
 
       MISSION: Execute a massive visibility campaign.
       
-      REQUIRED ACTIONS (Execute at least 7 distinct actions):
-      1. Submit to at least 1 high-quality directory.
-      2. Create 2 distinct social media posts (Twitter, LinkedIn).
-      3. Write 1 Web 2.0 blog post (Medium/Blogger).
-      4. Generate 1 SEO Article outline.
-      5. Issue 1 Press Release draft.
-      6. Submit URL to at least 1 major Search Engine.
-      7. Create a Short Video Script (TikTok/Shorts) to promote the site.
+      REQUIRED ACTIONS:
+      1. Create a compelling Social Media Post (Twitter/LinkedIn) with a generated image.
+      2. Write a detailed SEO Article draft.
+      3. Create a short promotional Video using Veo.
+      4. Submit to a Search Engine.
+      5. Draft a Press Release.
+      6. Setup Analytics Tracking.
 
       STRATEGY:
       - Customize content for the specific audience.
@@ -237,27 +248,29 @@ export const geminiService = {
 
       Call the provided tools to perform these actions.
       After calling a tool, I will confirm execution.
-      When you have completed at least 7 actions, output "CAMPAIGN_COMPLETE".
+      When you have completed the required actions, output "CAMPAIGN_COMPLETE".
     `;
 
     // Initialize chat session with tools
+    // Note: Thinking Mode disabled here to allow Tool usage (API restriction)
+    // We will use thinking mode inside the specific generation tools for quality content instead.
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       history: [
         { role: 'user', parts: [{ text: systemPrompt }] }
       ],
       config: {
-        tools: CAMPAIGN_TOOLS,
-        temperature: 0.7, // Creativity for content generation
+        tools: [...CAMPAIGN_TOOLS, { googleSearch: {} }, { codeExecution: {} }],
+        // thinkingConfig: { thinkingBudget: 32768 }, // DISABLED to prevent "Tool use with function calling is unsupported" error
       }
     });
 
     let keepGoing = true;
     let turnCount = 0;
-    const MAX_TURNS = 12; // Increased safety limit for more actions
+    const MAX_TURNS = 12; 
 
     // Initial Trigger
-    let currentMessage = "Start the campaign. Execute the first action.";
+    let currentMessage = "Start the campaign. Analyze the best strategy and execute the first action.";
 
     while (keepGoing && turnCount < MAX_TURNS) {
       turnCount++;
@@ -273,8 +286,8 @@ export const geminiService = {
           for (const call of functionCalls) {
             console.log(`🤖 Agent calling tool: ${call.name}`);
             
-            // SIMULATE EXECUTION & NOTIFY UI
-            const asset = await executeSimulatedTool(call, website);
+            // EXECUTE REAL TOOL (Generates Images/Videos/Text)
+            const asset = await executeRealTool(call, website);
             
             // Create Log Step
             const step: CampaignStep = {
@@ -291,28 +304,23 @@ export const geminiService = {
             responseParts.push({
               functionResponse: {
                 name: call.name,
-                response: { result: "Success: Asset created and scheduled." },
+                response: { result: "Success: Asset created." },
                 id: call.id
               }
             });
           }
 
-          // Send tool output back to model
-          // Using parts directly for function response
           const toolResponse = await chat.sendMessage({ message: responseParts as any });
           
-          // Check if model is done after tool response
           if (toolResponse.text?.includes("CAMPAIGN_COMPLETE")) {
             keepGoing = false;
           }
           currentMessage = "Continue with next action or finish if done.";
 
         } else {
-            // No function call, model might be talking or done
             if (response.text?.includes("CAMPAIGN_COMPLETE")) {
                 keepGoing = false;
             } else {
-                // Force it to do work if it's just chatting
                 currentMessage = "Please execute the next traffic generation tool.";
             }
         }
@@ -355,6 +363,7 @@ export const geminiService = {
         model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
+          thinkingConfig: { thinkingBudget: 32768 }, // Enabled Thinking Mode here where no tools are used
           responseMimeType: "application/json",
           responseSchema: {
              type: Type.ARRAY,
@@ -400,7 +409,96 @@ export const geminiService = {
   }
 };
 
-// --- HELPER FUNCTIONS FOR CAMPAIGN ---
+// --- REAL GENERATION HELPERS ---
+
+async function generateImage(prompt: string, size: '1K' | '2K' | '4K' = '1K'): Promise<string | null> {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview', // Nano Banana Pro
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        imageConfig: {
+          imageSize: size,
+          aspectRatio: "16:9" 
+        }
+      }
+    });
+    
+    // Find the image part
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("Image Gen Failed", e);
+    return null;
+  }
+}
+
+async function generateVideo(prompt: string): Promise<string | null> {
+  try {
+    let operation = await ai.models.generateVideos({
+      model: 'veo-3.1-fast-generate-preview',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1,
+        resolution: '720p',
+        aspectRatio: '16:9'
+      }
+    });
+
+    // Poll for completion
+    let attempts = 0;
+    while (!operation.done && attempts < 30) { // Max wait ~3 min
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      operation = await ai.operations.getVideosOperation({operation: operation});
+      attempts++;
+    }
+
+    if (operation.done && operation.response?.generatedVideos?.[0]?.video?.uri) {
+      // Append key to fetch the video binary
+      return `${operation.response.generatedVideos[0].video.uri}&key=${apiKey}`;
+    }
+    return null;
+  } catch (e) {
+    console.error("Video Gen Failed", e);
+    return null;
+  }
+}
+
+// Helper to generate fast text using Flash
+async function generateTextContent(prompt: string): Promise<string> {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview', 
+            contents: prompt
+        });
+        return response.text || "Content generation failed.";
+    } catch (e) {
+        return "Content generation error.";
+    }
+}
+
+// Helper to generate high quality content using Pro + Thinking
+async function generateLongFormContent(prompt: string): Promise<string> {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview', 
+            contents: prompt,
+            config: {
+                thinkingConfig: { thinkingBudget: 4096 } // Moderate thinking for structure
+            }
+        });
+        return response.text || "Content generation failed.";
+    } catch (e) {
+        console.error("Long Form Gen Error", e);
+        return "Content generation error.";
+    }
+}
+
+// --- TOOL EXECUTION LOGIC ---
 
 function formatActionName(toolName: string): string {
   const map: Record<string, string> = {
@@ -411,7 +509,8 @@ function formatActionName(toolName: string): string {
     "submit_press_release": "PR Distribution",
     "submit_to_search_engine": "Search Indexing",
     "create_video_content": "Video Creation",
-    "create_local_listing": "Local Map Listing"
+    "create_local_listing": "Local Map Listing",
+    "setup_analytics_tracking": "Analytics Config"
   };
   return map[toolName] || "Traffic Action";
 }
@@ -426,100 +525,151 @@ function getDetailFromCall(call: any): string {
   if (call.name === 'submit_to_search_engine') return `Pinging ${args.engine}`;
   if (call.name === 'create_video_content') return `Scripting for ${args.platform}`;
   if (call.name === 'create_local_listing') return `Listing on ${args.service}`;
+  if (call.name === 'setup_analytics_tracking') return `Configuring ${args.platform}`;
   return "Processing...";
 }
 
-// Simulates the external API calls and returns the "Created Asset"
-async function executeSimulatedTool(call: any, website: Website): Promise<CampaignAsset> {
+// Executes REAL work: Generates Images, Videos, and Text
+async function executeRealTool(call: any, website: Website): Promise<CampaignAsset> {
   const args = call.args;
-  await new Promise(r => setTimeout(r, 1200)); // Simulate API latency
-
   let asset: CampaignAsset = {
     id: Math.random().toString(),
     type: 'article',
     platform: 'web',
-    content: '',
+    content: 'Processing...',
     createdAt: Date.now()
   };
 
   switch (call.name) {
     case 'post_to_social_media':
+      // Generate real image for post
+      const imagePrompt = `A high quality social media image for: ${args.message}. Style: Professional, Engaging.`;
+      const imageUrl = await generateImage(imagePrompt, website.preferredImageSize || '1K');
+      
       asset = {
         id: Math.random().toString(),
         type: 'social_post',
         platform: args.platform,
         content: `${args.message}\n\nTags: ${args.hashtags?.join(' ')}`,
-        url: `https://${args.platform.toLowerCase()}.com/post/${Math.random().toString(36).substring(7)}`,
+        url: `https://${args.platform.toLowerCase()}.com/post/gen-${Math.random().toString(36).substring(7)}`,
+        mediaUrl: imageUrl || undefined,
+        mediaType: 'image',
         createdAt: Date.now()
       };
       break;
-    case 'submit_to_directory':
-      asset = {
-        id: Math.random().toString(),
-        type: 'directory_submission',
-        platform: 'Directory',
-        content: `Submitted to: ${args.directoryUrl}\nCategory: ${args.category}\nDesc: ${args.description}`,
-        url: `${args.directoryUrl}/listing/${website.name.replace(/\s/g, '').toLowerCase()}`,
-        createdAt: Date.now()
-      };
-      break;
-    case 'create_web2_post':
-      asset = {
-        id: Math.random().toString(),
-        type: 'article',
-        platform: args.platform,
-        content: `TITLE: ${args.title}\n\n${args.content.substring(0, 200)}...\n\n[Link to ${website.url}]`,
-        url: `https://${args.platform.toLowerCase()}.com/${website.name.toLowerCase()}-update`,
-        createdAt: Date.now()
-      };
-      break;
-    case 'generate_seo_article':
-      asset = {
-        id: Math.random().toString(),
-        type: 'article',
-        platform: 'Internal Blog',
-        content: `TOPIC: ${args.topic}\nKEYWORDS: ${args.targetKeywords?.join(', ')}\n\nOUTLINE:\n${args.outline}`,
-        createdAt: Date.now()
-      };
-      break;
-    case 'submit_press_release':
-      asset = {
-        id: Math.random().toString(),
-        type: 'article',
-        platform: args.outlet,
-        content: `HEADLINE: ${args.headline}\n\n${args.body.substring(0, 150)}...`,
-        url: `https://pr-newswire.com/${Date.now()}`,
-        createdAt: Date.now()
-      };
-      break;
-    case 'submit_to_search_engine':
-      asset = {
-        id: Math.random().toString(),
-        type: 'search_submission',
-        platform: args.engine,
-        content: `Submitted sitemap: ${args.sitemapUrl}`,
-        url: `https://${args.engine.toLowerCase()}.com/webmasters/status`,
-        createdAt: Date.now()
-      };
-      break;
+
     case 'create_video_content':
+      // Generate real video using Veo
+      const videoPrompt = args.visualPrompt || `A promotional video for ${website.name}: ${args.title}`;
+      const videoUrl = await generateVideo(videoPrompt);
+
       asset = {
         id: Math.random().toString(),
         type: 'video_content',
         platform: args.platform,
-        content: `TITLE: ${args.title}\n\nSCRIPT:\n${args.script.substring(0, 150)}...`,
-        url: `https://${args.platform.toLowerCase()}.com/shorts/${Math.random().toString(36).substring(7)}`,
+        content: `TITLE: ${args.title}\n\nVISUAL: ${args.visualPrompt}`,
+        url: `https://${args.platform.toLowerCase()}.com/shorts/gen-${Math.random().toString(36).substring(7)}`,
+        mediaUrl: videoUrl || undefined,
+        mediaType: 'video',
         createdAt: Date.now()
       };
       break;
+
+    case 'generate_seo_article':
+      // Generate full text with Gemini Pro + Thinking
+      const articlePrompt = `Write a comprehensive SEO article about "${args.topic}" for the website ${website.name} (${website.url}). Keywords: ${args.targetKeywords?.join(', ')}. Use the following outline: ${args.outline}. Format in Markdown.`;
+      const fullArticle = await generateLongFormContent(articlePrompt);
+
+      asset = {
+        id: Math.random().toString(),
+        type: 'article',
+        platform: 'Internal Blog',
+        content: fullArticle, // Full real content
+        createdAt: Date.now()
+      };
+      break;
+
+    case 'create_web2_post':
+        const blogPrompt = `Write a high-quality blog post for ${args.platform} titled "${args.title}". Content focus: ${args.content}. Include a natural backlink to ${website.url} with anchor "${args.backlinkAnchor}". Write at least 400 words.`;
+        const blogContent = await generateLongFormContent(blogPrompt);
+
+        asset = {
+            id: Math.random().toString(),
+            type: 'article',
+            platform: args.platform,
+            content: blogContent,
+            url: `https://${args.platform.toLowerCase()}.com/${website.name.toLowerCase()}-update`,
+            createdAt: Date.now()
+        };
+        break;
+
+    case 'submit_press_release':
+        const prPrompt = `Write a formal press release. Headline: ${args.headline}. Body context: ${args.body}. For outlet: ${args.outlet}. Include boilerplate for ${website.name}.`;
+        const prContent = await generateLongFormContent(prPrompt);
+        
+        asset = {
+            id: Math.random().toString(),
+            type: 'article',
+            platform: args.outlet,
+            content: prContent,
+            url: `https://pr-newswire.com/${Date.now()}`,
+            createdAt: Date.now()
+        };
+        break;
+
+    case 'submit_to_directory':
+      const dirPrompt = `Write a professional directory listing submission for the website "${website.name}" (${website.url}). Target Directory: ${args.directoryUrl}. Category: ${args.category}. Focus on the niche: ${website.niche}. Keep it under 100 words.`;
+      const dirContent = await generateTextContent(dirPrompt); 
+
+      asset = {
+        id: Math.random().toString(),
+        type: 'directory_submission',
+        platform: 'Directory',
+        content: `TARGET: ${args.directoryUrl}\n\nSUBMISSION TEXT:\n${dirContent}`,
+        url: `${args.directoryUrl}/listing/${website.name.replace(/\s/g, '').toLowerCase()}`,
+        createdAt: Date.now()
+      };
+      break;
+
+    case 'submit_to_search_engine':
+      const xmlPrompt = `Generate a valid XML sitemap snippet for ${website.url} with today's date (${new Date().toISOString().split('T')[0]}) as lastmod. Include Homepage, About, Contact, and Blog pages.`;
+      const xmlContent = await generateTextContent(xmlPrompt);
+
+      asset = {
+        id: Math.random().toString(),
+        type: 'search_submission',
+        platform: args.engine,
+        content: xmlContent,
+        url: `https://${args.engine.toLowerCase()}.com/webmasters/status`,
+        createdAt: Date.now()
+      };
+      break;
+
     case 'create_local_listing':
+      const localPrompt = `Generate Schema.org JSON-LD for a LocalBusiness: ${args.businessName} (${args.category}). Service: ${args.service}. Website: ${website.url}.`;
+      const localContent = await generateTextContent(localPrompt);
+
       asset = {
         id: Math.random().toString(),
         type: 'local_listing',
         platform: args.service,
-        content: `Business: ${args.businessName}\nCategory: ${args.category}`,
+        content: localContent,
         url: `https://${args.service.toLowerCase()}.com/maps?q=${encodeURIComponent(args.businessName)}`,
         createdAt: Date.now()
+      };
+      break;
+
+    case 'setup_analytics_tracking':
+      const codePrompt = `Generate the HTML/JS tracking snippet for ${args.platform} with Tracking ID: ${args.trackingId}.`;
+      const codeContent = await generateTextContent(codePrompt);
+
+      asset = {
+          id: Math.random().toString(),
+          type: 'search_submission', // Reusing type for UI simplicity
+          platform: args.platform,
+          content: codeContent,
+          url: `https://analytics.google.com/`,
+          createdAt: Date.now()
       };
       break;
   }

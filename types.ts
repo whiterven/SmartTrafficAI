@@ -59,6 +59,7 @@ export interface Website {
   detectedCTAs: string[]; // e.g. "Sign Up Button", "Newsletter Form"
   metaDescription?: string;
   metaKeywords?: string[];
+  preferredImageSize?: '1K' | '2K' | '4K'; // User preference for image generation
   
   createdAt: string;
   totalVisits: number;
@@ -116,6 +117,8 @@ export interface CampaignAsset {
   type: 'article' | 'social_post' | 'backlink' | 'video_script' | 'directory_submission' | 'video_content' | 'search_submission' | 'local_listing';
   platform: string;
   content: string; // The generated text/script
-  url?: string; // The simulated live URL
+  url?: string; // The simulated live URL or external link
+  mediaUrl?: string; // Base64 image or video Blob URL
+  mediaType?: 'image' | 'video';
   createdAt: number;
 }

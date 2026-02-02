@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import DiscoveryFeed from './pages/DiscoveryFeed';
 import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
+import SiteAnalytics from './pages/SiteAnalytics';
 import { dbService } from './services/dbService';
 
 // Protected Route Wrapper
@@ -36,6 +37,12 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={
             <ProtectedRoute allowedRoles={['OWNER']}>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/analytics/:id" element={
+            <ProtectedRoute allowedRoles={['OWNER']}>
+              <SiteAnalytics />
             </ProtectedRoute>
           } />
 

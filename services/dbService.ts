@@ -113,6 +113,11 @@ export const dbService = {
     return getItems<Website>(STORAGE_KEYS.WEBSITES);
   },
 
+  getSiteById: (id: string): Website | undefined => {
+    const sites = getItems<Website>(STORAGE_KEYS.WEBSITES);
+    return sites.find(s => s.id === id);
+  },
+
   updateWebsiteStats: (siteId: string, rating: number) => {
     const sites = getItems<Website>(STORAGE_KEYS.WEBSITES);
     const index = sites.findIndex(s => s.id === siteId);
@@ -136,6 +141,11 @@ export const dbService = {
   getRatingsByUser: (userId: string): Rating[] => {
     const ratings = getItems<Rating>(STORAGE_KEYS.RATINGS);
     return ratings.filter(r => r.userId === userId);
+  },
+
+  getRatingsBySite: (websiteId: string): Rating[] => {
+    const ratings = getItems<Rating>(STORAGE_KEYS.RATINGS);
+    return ratings.filter(r => r.websiteId === websiteId).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   },
 
   addRating: async (rating: Rating): Promise<Rating> => {

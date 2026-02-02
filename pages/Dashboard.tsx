@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { dbService } from '../services/dbService';
 import { geminiService } from '../services/geminiService';
 import { Website, Campaign, CampaignStep, CampaignAsset } from '../types';
-import { Plus, BarChart3, Globe, ExternalLink, Sparkles, Loader2, AlertCircle, Layers, MousePointerClick, Search, Tag, TrendingUp, Users, Clock, X, MessageSquare, ArrowUpRight, Zap, Play, Terminal, CheckCircle2, FileText, Share2, Link as LinkIcon, Video, MapPin, Globe2 } from 'lucide-react';
+import { Plus, BarChart3, Globe, ExternalLink, Sparkles, Loader2, AlertCircle, Layers, MousePointerClick, Search, Tag, TrendingUp, Users, Clock, X, MessageSquare, ArrowUpRight, Zap, Play, Terminal, CheckCircle2, FileText, Share2, Link as LinkIcon, Video, MapPin, Globe2, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const user = dbService.getCurrentUser();
+  const navigate = useNavigate();
   const [websites, setWebsites] = useState<Website[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeCampaignSite, setActiveCampaignSite] = useState<Website | null>(null);
@@ -46,6 +48,7 @@ const Dashboard: React.FC = () => {
                 <WebsiteCard 
                   site={site} 
                   onLaunch={() => setActiveCampaignSite(site)}
+                  onAnalytics={() => navigate(`/analytics/${site.id}`)}
                 />
               </div>
             ))}
@@ -69,7 +72,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const WebsiteCard: React.FC<{ site: Website, onLaunch: () => void }> = ({ site, onLaunch }) => (
+const WebsiteCard: React.FC<{ site: Website, onLaunch: () => void, onAnalytics: () => void }> = ({ site, onLaunch, onAnalytics }) => (
   <motion.div 
     layout
     initial={{ opacity: 0, scale: 0.95 }}
@@ -105,13 +108,22 @@ const WebsiteCard: React.FC<{ site: Website, onLaunch: () => void }> = ({ site, 
        </div>
     </div>
 
-    <button 
-      onClick={onLaunch}
-      className="w-full mt-auto bg-slate-700 hover:bg-brand-600 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center space-x-2 group-hover:shadow-lg group-hover:shadow-brand-500/20"
-    >
-      <Zap size={18} className="fill-current" />
-      <span>Launch Campaign</span>
-    </button>
+    <div className="mt-auto space-y-2">
+        <button 
+        onClick={onLaunch}
+        className="w-full bg-slate-700 hover:bg-brand-600 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center space-x-2 group-hover:shadow-lg group-hover:shadow-brand-500/20"
+        >
+        <Zap size={18} className="fill-current" />
+        <span>Launch Campaign</span>
+        </button>
+        <button 
+        onClick={onAnalytics}
+        className="w-full bg-transparent hover:bg-slate-700 text-slate-400 hover:text-white font-medium py-2 rounded-xl transition-all flex items-center justify-center space-x-2 text-sm"
+        >
+        <BarChart3 size={16} />
+        <span>View Analytics</span>
+        </button>
+    </div>
   </motion.div>
 );
 
@@ -209,7 +221,7 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
               {isRunning && (
                   <div className="flex items-center gap-2 text-brand-400 animate-pulse text-sm pl-7">
                       <span className="w-2 h-2 bg-brand-400 rounded-full"/>
-                      Agent is working...
+                      Agent is working (This may take a moment for video generation)...
                   </div>
               )}
               
@@ -229,13 +241,13 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
                        <Zap size={24} className="fill-white" />
                        <span>IGNITE TRAFFIC CAMPAIGN</span>
                    </button>
-                   <p className="text-center text-slate-500 text-xs mt-3">Est. 20+ automated actions in ~30 seconds</p>
+                   <p className="text-center text-slate-500 text-xs mt-3">Est. 20+ automated actions in ~2 minutes</p>
                </div>
            )}
         </div>
 
         {/* Right: Assets & Results */}
-        <div className="w-full md:w-[400px] bg-slate-800/50 p-6 flex flex-col overflow-y-auto">
+        <div className="w-full md:w-[500px] bg-slate-800/50 p-6 flex flex-col overflow-y-auto">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6">Generated Assets</h3>
             
             <div className="space-y-4 mb-8">
@@ -275,7 +287,20 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
                              </div>
                              {asset.url && <a href={asset.url} target="_blank" className="text-slate-500 hover:text-white"><ExternalLink size={12}/></a>}
                         </div>
-                        <p className="text-xs text-slate-400 line-clamp-3 font-mono bg-black/20 p-2 rounded">
+                        
+                        {/* Render Generated Media */}
+                        {asset.mediaType === 'image' && asset.mediaUrl && (
+                            <div className="mb-3 rounded-lg overflow-hidden border border-slate-700 mt-2">
+                                <img src={asset.mediaUrl} alt="Generated Asset" className="w-full h-auto object-cover" />
+                            </div>
+                        )}
+                         {asset.mediaType === 'video' && asset.mediaUrl && (
+                            <div className="mb-3 rounded-lg overflow-hidden border border-slate-700 mt-2 bg-black">
+                                <video controls src={asset.mediaUrl} className="w-full h-auto" />
+                            </div>
+                        )}
+
+                        <p className="text-xs text-slate-400 line-clamp-4 font-mono bg-black/20 p-2 rounded whitespace-pre-wrap">
                             {asset.content}
                         </p>
                     </motion.div>
@@ -304,6 +329,7 @@ const AddWebsiteModal: React.FC<{ onClose: () => void, onAdd: (s: Website) => vo
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
+  const [preferredImageSize, setPreferredImageSize] = useState<'1K' | '2K' | '4K'>('1K'); // New State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<Partial<Website> | null>(null);
   const [urlError, setUrlError] = useState('');
@@ -366,6 +392,7 @@ const AddWebsiteModal: React.FC<{ onClose: () => void, onAdd: (s: Website) => vo
       detectedCTAs: analysis.detectedCTAs || [],
       metaDescription: analysis.metaDescription,
       metaKeywords: analysis.metaKeywords,
+      preferredImageSize: preferredImageSize, // Store user preference
       
       createdAt: new Date().toISOString(),
       totalVisits: 0,
@@ -438,7 +465,27 @@ const AddWebsiteModal: React.FC<{ onClose: () => void, onAdd: (s: Website) => vo
                       placeholder="e.g. Female fashion lovers, 18-35, high spenders"
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-brand-500"
                     />
-                    <p className="text-xs text-slate-500 mt-1">AI uses this to build the perfect "Visitor DNA" for matching.</p>
+                  </div>
+                  
+                  {/* Image Size Preference */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Preferred Image Generation Quality</label>
+                    <div className="flex gap-2">
+                        {(['1K', '2K', '4K'] as const).map(size => (
+                            <button
+                                key={size}
+                                onClick={() => setPreferredImageSize(size)}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                                    preferredImageSize === size 
+                                    ? 'bg-brand-600 border-brand-500 text-white' 
+                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                                }`}
+                            >
+                                {size}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Used by Nano Banana Pro for social assets.</p>
                   </div>
 
                   <button
