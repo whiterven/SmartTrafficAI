@@ -99,7 +99,7 @@ const ChatBot: React.FC = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask Gemini..."
+                  placeholder="Ask AI..."
                   className="flex-1 bg-transparent border-none focus:outline-none text-sm text-white placeholder-slate-500"
                 />
                 <button 
