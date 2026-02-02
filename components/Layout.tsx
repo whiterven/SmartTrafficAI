@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { dbService } from '../services/dbService';
 import { UserRole } from '../types';
 import { Zap, LogOut, LayoutDashboard, Compass, Trophy, User as UserIcon, Coins } from 'lucide-react';
@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }`;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500 selection:text-white flex flex-col">
       {/* Top Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 h-14 md:h-16">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-full flex items-center justify-between">
@@ -87,6 +87,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           {!user && (
             <div className="flex items-center space-x-2 md:space-x-4">
+               <NavLink to="/pricing" className="text-xs md:text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:block">Pricing</NavLink>
                <button onClick={() => navigate('/login')} className="text-xs md:text-sm font-medium text-slate-300 hover:text-white transition-colors">Login</button>
                <button onClick={() => navigate('/login')} className="text-xs md:text-sm font-medium bg-white text-slate-900 px-3 py-1.5 md:px-4 md:py-2 rounded-full hover:bg-slate-200 transition-colors">Get Started</button>
             </div>
@@ -95,9 +96,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="pt-16 md:pt-20 px-3 md:px-4 max-w-7xl mx-auto pb-24 md:pb-20">
+      <main className="flex-1 pt-16 md:pt-20 px-3 md:px-4 max-w-7xl mx-auto w-full">
         {children}
       </main>
+
+      {/* Footer (Only on specific public pages or all pages?) - Let's put it on all pages but styled simply */}
+      <footer className="w-full bg-slate-950 border-t border-slate-800 py-10 text-center text-slate-500 text-xs md:text-sm mt-auto">
+         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">
+                <Zap size={14} />
+                <span className="font-semibold tracking-wider">SMARTTRAFFIC AI</span>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-6">
+                <Link to="/about" className="hover:text-white transition-colors">About</Link>
+                <Link to="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+                <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+                <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+            </div>
+
+            <p className="opacity-50">&copy; {new Date().getFullYear()} SmartTraffic AI.</p>
+         </div>
+      </footer>
 
       {/* Chat Bot */}
       <ChatBot />

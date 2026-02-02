@@ -8,6 +8,9 @@ import DiscoveryFeed from './pages/DiscoveryFeed';
 import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
 import SiteAnalytics from './pages/SiteAnalytics';
+import Pricing from './pages/Pricing';
+import About from './pages/About';
+import { Privacy, Terms } from './pages/Legal';
 import { dbService } from './services/dbService';
 
 // Protected Route Wrapper
@@ -32,6 +35,12 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Auth />} />
+          
+          {/* Public Pages */}
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           
           {/* Website Owner Routes */}
           <Route path="/dashboard" element={
