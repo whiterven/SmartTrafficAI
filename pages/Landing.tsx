@@ -315,15 +315,6 @@ const Landing: React.FC = () => {
              </div>
          </div>
       </section>
-
-      {/* --- FOOTER --- */}
-      <footer className="w-full bg-slate-950 border-t border-slate-800 py-8 md:py-12 text-center text-slate-500 text-xs md:text-sm">
-         <div className="flex items-center justify-center space-x-2 mb-4 opacity-50">
-            <Zap size={14} />
-            <span className="font-semibold tracking-wider">SMARTTRAFFIC AI</span>
-         </div>
-         <p>&copy; {new Date().getFullYear()} SmartTraffic AI. All rights reserved.</p>
-      </footer>
     </div>
   );
 };

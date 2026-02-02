@@ -100,7 +100,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </main>
 
-      {/* Footer (Only on specific public pages or all pages?) - Let's put it on all pages but styled simply */}
+      {/* Footer */}
       <footer className="w-full bg-slate-950 border-t border-slate-800 py-10 text-center text-slate-500 text-xs md:text-sm mt-auto">
          <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">
@@ -111,6 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex flex-wrap justify-center gap-6">
                 <Link to="/about" className="hover:text-white transition-colors">About</Link>
                 <Link to="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+                <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
                 <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
                 <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
             </div>
