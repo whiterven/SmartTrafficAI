@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { dbService } from '../services/dbService';
 import { geminiService } from '../services/geminiService';
 import { Website, Campaign, CampaignStep, CampaignAsset } from '../types';
-import { Plus, BarChart3, Globe, ExternalLink, Sparkles, Loader2, AlertCircle, Layers, MousePointerClick, Search, Tag, TrendingUp, Users, Clock, X, MessageSquare, ArrowUpRight, Zap, Play, Terminal, CheckCircle2, FileText, Share2, Link as LinkIcon, Video } from 'lucide-react';
+import { Plus, BarChart3, Globe, ExternalLink, Sparkles, Loader2, AlertCircle, Layers, MousePointerClick, Search, Tag, TrendingUp, Users, Clock, X, MessageSquare, ArrowUpRight, Zap, Play, Terminal, CheckCircle2, FileText, Share2, Link as LinkIcon, Video, MapPin, Globe2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
@@ -125,8 +125,9 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Stats
-  const backlinks = assets.filter(a => a.type === 'backlink' || a.type === 'directory_submission').length;
-  const posts = assets.filter(a => a.type === 'social_post' || a.type === 'article').length;
+  const backlinks = assets.filter(a => a.type === 'backlink' || a.type === 'directory_submission' || a.type === 'local_listing').length;
+  const posts = assets.filter(a => a.type === 'social_post' || a.type === 'article' || a.type === 'video_content').length;
+  const indexEvents = assets.filter(a => a.type === 'search_submission').length;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -158,7 +159,7 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
         assets: assets,
         totalBacklinks: backlinks,
         totalPosts: posts,
-        estimatedTraffic: (backlinks * 10) + (posts * 50)
+        estimatedTraffic: (backlinks * 10) + (posts * 50) + (indexEvents * 100)
     };
     dbService.saveCampaign(campaign);
   };
@@ -238,14 +239,18 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6">Generated Assets</h3>
             
             <div className="space-y-4 mb-8">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                        <div className="text-2xl font-bold text-white">{backlinks}</div>
-                        <div className="text-xs text-slate-500 uppercase">Backlinks</div>
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 text-center">
+                        <div className="text-xl font-bold text-white">{backlinks}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">Backlinks</div>
                     </div>
-                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                        <div className="text-2xl font-bold text-white">{posts}</div>
-                        <div className="text-xs text-slate-500 uppercase">Posts</div>
+                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 text-center">
+                        <div className="text-xl font-bold text-white">{posts}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">Content</div>
+                    </div>
+                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 text-center">
+                        <div className="text-xl font-bold text-white">{indexEvents}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">Indexed</div>
                     </div>
                 </div>
             </div>
@@ -263,6 +268,9 @@ const CampaignRunner: React.FC<{ site: Website, onClose: () => void }> = ({ site
                                 {asset.type === 'article' && <FileText size={14} className="text-blue-400" />}
                                 {asset.type === 'social_post' && <Share2 size={14} className="text-pink-400" />}
                                 {asset.type === 'directory_submission' && <LinkIcon size={14} className="text-emerald-400" />}
+                                {asset.type === 'search_submission' && <Globe2 size={14} className="text-indigo-400" />}
+                                {asset.type === 'video_content' && <Video size={14} className="text-red-400" />}
+                                {asset.type === 'local_listing' && <MapPin size={14} className="text-orange-400" />}
                                 <span className="text-xs font-bold text-white capitalize">{asset.platform}</span>
                              </div>
                              {asset.url && <a href={asset.url} target="_blank" className="text-slate-500 hover:text-white"><ExternalLink size={12}/></a>}

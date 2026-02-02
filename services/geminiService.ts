@@ -77,6 +77,44 @@ const CAMPAIGN_TOOLS: Tool[] = [
           },
           required: ["headline", "body", "outlet"]
         }
+      },
+      {
+        name: "submit_to_search_engine",
+        description: "Submit website URL to search engines for indexing",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            engine: { type: Type.STRING },
+            sitemapUrl: { type: Type.STRING }
+          },
+          required: ["engine", "sitemapUrl"]
+        }
+      },
+      {
+        name: "create_video_content",
+        description: "Generate a promotional video script and metadata",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            platform: { type: Type.STRING },
+            title: { type: Type.STRING },
+            script: { type: Type.STRING }
+          },
+          required: ["platform", "title", "script"]
+        }
+      },
+      {
+        name: "create_local_listing",
+        description: "Create a business listing on map services",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            service: { type: Type.STRING },
+            businessName: { type: Type.STRING },
+            category: { type: Type.STRING }
+          },
+          required: ["service", "businessName", "category"]
+        }
       }
     ]
   }
@@ -183,21 +221,23 @@ export const geminiService = {
 
       MISSION: Execute a massive visibility campaign.
       
-      REQUIRED ACTIONS (Execute at least 5 distinct actions):
+      REQUIRED ACTIONS (Execute at least 7 distinct actions):
       1. Submit to at least 1 high-quality directory.
       2. Create 2 distinct social media posts (Twitter, LinkedIn).
       3. Write 1 Web 2.0 blog post (Medium/Blogger).
       4. Generate 1 SEO Article outline.
       5. Issue 1 Press Release draft.
+      6. Submit URL to at least 1 major Search Engine.
+      7. Create a Short Video Script (TikTok/Shorts) to promote the site.
 
       STRATEGY:
       - Customize content for the specific audience.
       - Use persuasive language.
-      - Ensure diversity in platforms.
+      - Ensure diversity in platforms (Text, Video, Social, Search).
 
       Call the provided tools to perform these actions.
       After calling a tool, I will confirm execution.
-      When you have completed at least 5 actions, output "CAMPAIGN_COMPLETE".
+      When you have completed at least 7 actions, output "CAMPAIGN_COMPLETE".
     `;
 
     // Initialize chat session with tools
@@ -214,7 +254,7 @@ export const geminiService = {
 
     let keepGoing = true;
     let turnCount = 0;
-    const MAX_TURNS = 8; // Safety limit
+    const MAX_TURNS = 12; // Increased safety limit for more actions
 
     // Initial Trigger
     let currentMessage = "Start the campaign. Execute the first action.";
@@ -251,14 +291,15 @@ export const geminiService = {
             responseParts.push({
               functionResponse: {
                 name: call.name,
-                response: { result: "Success: Content created and submitted/scheduled." },
+                response: { result: "Success: Asset created and scheduled." },
                 id: call.id
               }
             });
           }
 
           // Send tool output back to model
-          const toolResponse = await chat.sendMessage({ message: responseParts });
+          // Using parts directly for function response
+          const toolResponse = await chat.sendMessage({ message: responseParts as any });
           
           // Check if model is done after tool response
           if (toolResponse.text?.includes("CAMPAIGN_COMPLETE")) {
@@ -367,7 +408,10 @@ function formatActionName(toolName: string): string {
     "create_web2_post": "Web 2.0 Blog Post",
     "post_to_social_media": "Social Media Blast",
     "generate_seo_article": "SEO Content Gen",
-    "submit_press_release": "PR Distribution"
+    "submit_press_release": "PR Distribution",
+    "submit_to_search_engine": "Search Indexing",
+    "create_video_content": "Video Creation",
+    "create_local_listing": "Local Map Listing"
   };
   return map[toolName] || "Traffic Action";
 }
@@ -379,13 +423,16 @@ function getDetailFromCall(call: any): string {
   if (call.name === 'create_web2_post') return `Publishing on ${args.platform}`;
   if (call.name === 'generate_seo_article') return `Drafting: ${args.topic}`;
   if (call.name === 'submit_press_release') return `Outlet: ${args.outlet}`;
+  if (call.name === 'submit_to_search_engine') return `Pinging ${args.engine}`;
+  if (call.name === 'create_video_content') return `Scripting for ${args.platform}`;
+  if (call.name === 'create_local_listing') return `Listing on ${args.service}`;
   return "Processing...";
 }
 
 // Simulates the external API calls and returns the "Created Asset"
 async function executeSimulatedTool(call: any, website: Website): Promise<CampaignAsset> {
   const args = call.args;
-  await new Promise(r => setTimeout(r, 1500)); // Simulate API latency
+  await new Promise(r => setTimeout(r, 1200)); // Simulate API latency
 
   let asset: CampaignAsset = {
     id: Math.random().toString(),
@@ -395,25 +442,28 @@ async function executeSimulatedTool(call: any, website: Website): Promise<Campai
     createdAt: Date.now()
   };
 
-  if (call.name === 'post_to_social_media') {
-    asset = {
-      id: Math.random().toString(),
-      type: 'social_post',
-      platform: args.platform,
-      content: `${args.message}\n\nTags: ${args.hashtags?.join(' ')}`,
-      url: `https://${args.platform.toLowerCase()}.com/post/${Math.random().toString(36).substring(7)}`,
-      createdAt: Date.now()
-    };
-  } else if (call.name === 'submit_to_directory') {
-    asset = {
+  switch (call.name) {
+    case 'post_to_social_media':
+      asset = {
+        id: Math.random().toString(),
+        type: 'social_post',
+        platform: args.platform,
+        content: `${args.message}\n\nTags: ${args.hashtags?.join(' ')}`,
+        url: `https://${args.platform.toLowerCase()}.com/post/${Math.random().toString(36).substring(7)}`,
+        createdAt: Date.now()
+      };
+      break;
+    case 'submit_to_directory':
+      asset = {
         id: Math.random().toString(),
         type: 'directory_submission',
         platform: 'Directory',
         content: `Submitted to: ${args.directoryUrl}\nCategory: ${args.category}\nDesc: ${args.description}`,
         url: `${args.directoryUrl}/listing/${website.name.replace(/\s/g, '').toLowerCase()}`,
         createdAt: Date.now()
-    };
-  } else if (call.name === 'create_web2_post') {
+      };
+      break;
+    case 'create_web2_post':
       asset = {
         id: Math.random().toString(),
         type: 'article',
@@ -422,23 +472,56 @@ async function executeSimulatedTool(call: any, website: Website): Promise<Campai
         url: `https://${args.platform.toLowerCase()}.com/${website.name.toLowerCase()}-update`,
         createdAt: Date.now()
       };
-  } else if (call.name === 'generate_seo_article') {
+      break;
+    case 'generate_seo_article':
       asset = {
-          id: Math.random().toString(),
-          type: 'article',
-          platform: 'Internal Blog',
-          content: `TOPIC: ${args.topic}\nKEYWORDS: ${args.targetKeywords?.join(', ')}\n\nOUTLINE:\n${args.outline}`,
-          createdAt: Date.now()
+        id: Math.random().toString(),
+        type: 'article',
+        platform: 'Internal Blog',
+        content: `TOPIC: ${args.topic}\nKEYWORDS: ${args.targetKeywords?.join(', ')}\n\nOUTLINE:\n${args.outline}`,
+        createdAt: Date.now()
       };
-  } else if (call.name === 'submit_press_release') {
+      break;
+    case 'submit_press_release':
       asset = {
-          id: Math.random().toString(),
-          type: 'article',
-          platform: args.outlet,
-          content: `HEADLINE: ${args.headline}\n\n${args.body.substring(0, 150)}...`,
-          url: `https://pr-newswire.com/${Date.now()}`,
-          createdAt: Date.now()
+        id: Math.random().toString(),
+        type: 'article',
+        platform: args.outlet,
+        content: `HEADLINE: ${args.headline}\n\n${args.body.substring(0, 150)}...`,
+        url: `https://pr-newswire.com/${Date.now()}`,
+        createdAt: Date.now()
       };
+      break;
+    case 'submit_to_search_engine':
+      asset = {
+        id: Math.random().toString(),
+        type: 'search_submission',
+        platform: args.engine,
+        content: `Submitted sitemap: ${args.sitemapUrl}`,
+        url: `https://${args.engine.toLowerCase()}.com/webmasters/status`,
+        createdAt: Date.now()
+      };
+      break;
+    case 'create_video_content':
+      asset = {
+        id: Math.random().toString(),
+        type: 'video_content',
+        platform: args.platform,
+        content: `TITLE: ${args.title}\n\nSCRIPT:\n${args.script.substring(0, 150)}...`,
+        url: `https://${args.platform.toLowerCase()}.com/shorts/${Math.random().toString(36).substring(7)}`,
+        createdAt: Date.now()
+      };
+      break;
+    case 'create_local_listing':
+      asset = {
+        id: Math.random().toString(),
+        type: 'local_listing',
+        platform: args.service,
+        content: `Business: ${args.businessName}\nCategory: ${args.category}`,
+        url: `https://${args.service.toLowerCase()}.com/maps?q=${encodeURIComponent(args.businessName)}`,
+        createdAt: Date.now()
+      };
+      break;
   }
 
   return asset;

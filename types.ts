@@ -113,7 +113,7 @@ export interface CampaignStep {
 
 export interface CampaignAsset {
   id: string;
-  type: 'article' | 'social_post' | 'backlink' | 'video_script' | 'directory_submission';
+  type: 'article' | 'social_post' | 'backlink' | 'video_script' | 'directory_submission' | 'video_content' | 'search_submission' | 'local_listing';
   platform: string;
   content: string; // The generated text/script
   url?: string; // The simulated live URL
